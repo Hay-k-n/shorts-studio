@@ -6,6 +6,9 @@ export async function middleware(request: NextRequest) {
   const { response, user } = await updateSession(request);
 
   const { pathname } = request.nextUrl;
+  const isPublicRoute = pathname.startsWith("/tos") || pathname.startsWith("/privacy");
+  if (isPublicRoute) return response;
+
   const isAuthRoute = pathname.startsWith("/login") || pathname.startsWith("/signup");
   const workspaceId = request.cookies.get(WORKSPACE_COOKIE)?.value;
 

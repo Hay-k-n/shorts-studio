@@ -109,6 +109,11 @@ export default function SignupPage() {
           </div>
         </form>
       </div>
+
+      <footer style={{ textAlign: "center", paddingBottom: 24, fontSize: 11, color: C.t3 }}>
+        <Link href="/tos" style={{ color: C.t3, textDecoration: "none", marginRight: 16 }}>Terms of Service</Link>
+        <Link href="/privacy" style={{ color: C.t3, textDecoration: "none" }}>Privacy Policy</Link>
+      </footer>
     </main>
   );
 }
