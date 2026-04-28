@@ -39,6 +39,6 @@ export const config = {
   // A middleware redirect on an API route preserves the HTTP method (307),
   // which causes a 405 when it lands on a page route with no POST handler.
   matcher: [
-    "/((?!api/|_next/static|_next/image|favicon\\.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!api/|_next/static|_next/image|favicon\\.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|txt|xml|json)$).*)",
   ],
 };
