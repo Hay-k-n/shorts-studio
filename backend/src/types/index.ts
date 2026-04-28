@@ -82,7 +82,7 @@ export interface PostYouTubeJobData {
   description: string;       // caption + hashtags
   tags: string[];
   category_id: number;
-  privacy_status: string;
+  privacy_status: "public" | "private" | "unlisted";
   made_for_kids: boolean;
   access_token: string;
 }

@@ -546,7 +546,7 @@ async function handleRender(job: Job<AvatarRenderJobData>) {
 async function mergePostResult(
   videoId: string,
   platform: string,
-  result: Record<string, unknown>
+  result: unknown
 ) {
   // Read current platform_captions, merge in post result, write back.
   const { data: video } = await supabase
@@ -557,6 +557,7 @@ async function mergePostResult(
 
   const current: Record<string, unknown> = (video?.platform_captions as Record<string, unknown>) ?? {};
   const existing = (current[platform] as Record<string, unknown>) ?? {};
+  const r = result as Record<string, unknown>;
 
   await supabase
     .from("videos")
@@ -564,7 +565,7 @@ async function mergePostResult(
       status: "posted",
       platform_captions: {
         ...current,
-        [platform]: { ...existing, post_result: { ...result, posted_at: new Date().toISOString() } },
+        [platform]: { ...existing, post_result: { ...r, posted_at: new Date().toISOString() } },
       },
     })
     .eq("id", videoId);
