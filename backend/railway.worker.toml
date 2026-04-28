@@ -1,0 +1,13 @@
+# Railway config — Worker service
+# In the Railway dashboard: create a second service from the same GitHub repo,
+# set Root Directory to "backend", and set Config File Path to "railway.worker.toml".
+# Share all the same env vars as the API service (add the reference in Railway).
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+startCommand = "node dist/workers/videoWorker.js"
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10

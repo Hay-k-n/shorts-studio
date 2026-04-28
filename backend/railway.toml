@@ -1,0 +1,14 @@
+# Railway config — API service
+# In the Railway dashboard: set this as the Config File Path for the API service.
+# Set Config File Path to "backend/railway.worker.toml" for the Worker service.
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+startCommand = "node dist/index.js"
+healthcheckPath = "/health"
+healthcheckTimeout = 300
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
