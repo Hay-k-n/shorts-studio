@@ -25,9 +25,13 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
+  // getSession() reads the JWT from cookies without a network call.
+  // getUser() validates with Supabase servers — unreliable in Edge Runtime
+  // middleware where a transient failure silently returns null and causes a
+  // redirect loop. For route-gating purposes getSession() is sufficient.
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
+    data: { session },
+  } = await supabase.auth.getSession();
 
-  return { response, user };
+  return { response, user: session?.user ?? null };
 }

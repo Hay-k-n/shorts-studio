@@ -66,8 +66,11 @@ export default function LoginPage() {
 
     if (list.length === 1) {
       setWorkspaceId(list[0].id);
-      router.push("/dashboard");
-      router.refresh();
+      // Hard navigation so the browser sends the full cookie jar (Supabase
+      // session + workspace cookie) in the middleware's incoming request.
+      // router.push() is an RSC soft-nav that can arrive before cookies are
+      // visible server-side, causing the middleware to see no session.
+      window.location.href = "/dashboard";
       return;
     }
 
@@ -78,8 +81,7 @@ export default function LoginPage() {
 
   function pickWorkspace(id: string) {
     setWorkspaceId(id);
-    router.push("/dashboard");
-    router.refresh();
+    window.location.href = "/dashboard";
   }
 
   // ── Workspace picker ─────────────────────────────────────────────────────────

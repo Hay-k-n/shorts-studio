@@ -5,7 +5,6 @@ export const dynamic = "force-dynamic";
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { setWorkspaceId } from "@/lib/workspace";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 const C = {
@@ -26,7 +25,6 @@ export default function SignupPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -56,11 +54,10 @@ export default function SignupPage() {
       return;
     }
 
-    // 3. Store active workspace in cookie
+    // 3. Store active workspace in cookie then hard-navigate so middleware
+    // sees both the Supabase session cookie and the workspace cookie.
     setWorkspaceId(signupData.workspace_id);
-
-    router.push("/dashboard");
-    router.refresh();
+    window.location.href = "/dashboard";
   }
 
   return (
