@@ -42,7 +42,8 @@ async function createJob(
   return job!;
 }
 
-async function linkBullJob(jobId: string, bullJobId: string | number) {
+async function linkBullJob(jobId: string, bullJobId: string | number | undefined) {
+  if (bullJobId === undefined) return;
   await supabase
     .from("video_jobs")
     .update({ bull_job_id: String(bullJobId) })
