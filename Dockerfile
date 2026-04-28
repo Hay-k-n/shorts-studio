@@ -19,17 +19,15 @@ FROM node:20-slim
 
 WORKDIR /app
 
-# ffmpeg: fluent-ffmpeg merge + yt-dlp stream muxing
-# yt-dlp: single Go binary — no Python required
-RUN apt-get update && apt-get install -y --no-install-recommends \
-      ffmpeg \
-      curl \
-    && curl -fsSL \
-         https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp \
-         -o /usr/local/bin/yt-dlp \
-    && chmod +x /usr/local/bin/yt-dlp \
-    && apt-get purge -y --auto-remove curl \
-    && rm -rf /var/lib/apt/lists/*
+# python3 + pip: required to install yt-dlp
+# ffmpeg is NOT installed here — the ffmpeg-static npm package provides the
+# binary and lib/ffmpeg.ts sets the path via ffmpeg.setFfmpegPath(ffmpegStatic)
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+      python3 \
+      python3-pip \
+ && pip3 install --no-cache-dir --break-system-packages yt-dlp \
+ && rm -rf /var/lib/apt/lists/*
 
 RUN mkdir -p /tmp/shorts-studio
 
