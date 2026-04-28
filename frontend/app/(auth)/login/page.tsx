@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { setWorkspaceId } from "@/lib/workspace";
@@ -27,13 +29,13 @@ export default function LoginPage() {
   // Workspace picker state — shown after sign-in when user has multiple workspaces
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const router = useRouter();
-  const supabase = createClient();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError("");
 
+    const supabase = createClient();
     const { data, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
     if (signInError || !data.session) {
       setError(signInError?.message ?? "Sign in failed");
