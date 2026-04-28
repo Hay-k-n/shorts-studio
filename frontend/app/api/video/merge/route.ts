@@ -6,16 +6,15 @@ import { WORKSPACE_COOKIE } from "@/lib/workspace";
 export async function POST(req: NextRequest) {
   const supabase = createClient();
   const { data: { session } } = await supabase.auth.getSession();
-
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const workspaceId = cookies().get(WORKSPACE_COOKIE)?.value;
-  const body = await req.json();
   const backendUrl = process.env.BACKEND_URL ?? "http://localhost:4000";
+  const body = await req.json();
 
-  const upstream = await fetch(`${backendUrl}/api/video/merge`, {
+  let upstream: Response;
+  try {
+    upstream = await fetch(`${backendUrl}/api/video/merge`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -23,8 +22,15 @@ export async function POST(req: NextRequest) {
       ...(workspaceId ? { "X-Workspace-Id": workspaceId } : {}),
     },
     body: JSON.stringify(body),
-  });
+    });
+  } catch (err: any) {
+    return NextResponse.json({ error: "Backend unreachable: " + err.message }, { status: 502 });
+  }
 
-  const data = await upstream.json();
+  const text = await upstream.text();
+  let data: unknown;
+  try { data = JSON.parse(text); } catch {
+    return NextResponse.json({ error: "Backend returned non-JSON (status " + upstream.status + ")" }, { status: 502 });
+  }
   return NextResponse.json(data, { status: upstream.status });
 }
