@@ -446,7 +446,10 @@ export default function App({ workspaceId = null }) {
     if (!workspaceId) return;
     const sb = createClient();
     sb.auth.getUser().then(({ data: { user: u } }) => {
-      if (u) setUser({ id: u.id, email: u.email, name: u.user_metadata?.name || u.email?.split("@")[0] || "" });
+      if (!u) return;
+      sb.from("workspace_members").select("role").eq("workspace_id", workspaceId).eq("user_id", u.id).single().then(({ data: mem }) => {
+        setUser({ id: u.id, email: u.email, name: u.user_metadata?.name || u.email?.split("@")[0] || "", role: mem?.role ?? "member" });
+      });
     });
     sb.from("workspaces").select("id,name").eq("id", workspaceId).single().then(({ data: wsData }) => {
       if (!wsData) return;
