@@ -28,13 +28,16 @@ export async function GET(_req: NextRequest) {
     return NextResponse.json({ error: "HeyGen not connected for this workspace" }, { status: 400 });
   }
 
+  const apiKey = conn.encrypted_key.trim();
+
   try {
     const res = await fetch("https://api.heygen.com/v2/avatars", {
-      headers: { "X-Api-Key": conn.encrypted_key },
+      headers: { "X-Api-Key": apiKey },
     });
     const data = await res.json();
     if (!res.ok) {
-      return NextResponse.json({ error: data?.message ?? `HeyGen error ${res.status}` }, { status: 502 });
+      const msg = data?.message ?? data?.error ?? data?.detail ?? JSON.stringify(data);
+      return NextResponse.json({ error: `HeyGen ${res.status}: ${msg}` }, { status: 502 });
     }
     const all: Record<string, unknown>[] = data?.data?.avatars ?? [];
     const filtered = all.filter(isV4Plus);

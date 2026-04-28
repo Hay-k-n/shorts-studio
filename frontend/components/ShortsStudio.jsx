@@ -151,8 +151,8 @@ function unpackConnections(wsId, conn = {}) {
     .map(({ provider, keyField, acctField }) => ({
       workspace_id: wsId,
       provider,
-      encrypted_key: conn[keyField] || null,
-      account_name: acctField ? (conn[acctField] || null) : null,
+      encrypted_key: conn[keyField]?.trim() || null,
+      account_name: acctField ? (conn[acctField]?.trim() || null) : null,
     }));
 }
 
