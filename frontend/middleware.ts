@@ -7,13 +7,7 @@ export async function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
   const isAuthRoute = pathname.startsWith("/login") || pathname.startsWith("/signup");
-  // API routes handle their own auth — never redirect them to /login.
-  // A 307 redirect from middleware would preserve the POST method and cause
-  // a 405 on the page route at the redirect target.
-  const isApiRoute = pathname.startsWith("/api/");
   const workspaceId = request.cookies.get(WORKSPACE_COOKIE)?.value;
-
-  if (isApiRoute) return response;
 
   // Not authenticated → gate all non-auth page routes
   if (!user && !isAuthRoute) {
@@ -39,7 +33,10 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
+  // Exclude /api/* entirely — those routes handle their own auth.
+  // A middleware redirect on an API route preserves the HTTP method (307),
+  // which causes a 405 when it lands on a page route with no POST handler.
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!api/|_next/static|_next/image|favicon\\.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };
