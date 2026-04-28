@@ -23,14 +23,27 @@ export async function POST(req: NextRequest) {
   const queryClause = query ? ` about "${query}"` : "";
   const sourceLabel = SOURCE_LABELS[source] ?? source;
 
-  const prompt =
-    source === "url"
-      ? `Analyze this URL: "${customUrl}".`
-      : `Search for ${contentType}${queryClause} from ${sourceLabel}.`;
+  // For custom URLs skip AI entirely — just surface the URL as a selectable card
+  if (source === "url" && customUrl) {
+    let title = customUrl;
+    try { title = new URL(customUrl).hostname.replace(/^www\./, ""); } catch {}
+    return NextResponse.json({
+      results: [{
+        title: `Custom URL: ${title}`,
+        summary: "Content will be fetched and analysed during script generation.",
+        source: "Custom URL",
+        hasVideo: true,
+        time: "Now",
+        url: customUrl,
+        contentType: "video",
+      }],
+    });
+  }
 
   const userContent =
-    `${prompt}\n\nFind up to 5 results. Return JSON only — no markdown fences:\n` +
-    `[{"title":"...","summary":"...","source":"...","hasVideo":true,"time":"2h ago","url":"...","contentType":"..."}]`;
+    `Search for ${contentType}${queryClause} from ${sourceLabel}.\n\n` +
+    `Find up to 5 real, recent results. Return a raw JSON array only — absolutely no markdown fences, no preamble:\n` +
+    `[{"title":"...","summary":"...","source":"...","hasVideo":true,"time":"2h ago","url":"https://...","contentType":"..."}]`;
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
@@ -47,7 +60,7 @@ export async function POST(req: NextRequest) {
       },
       body: JSON.stringify({
         model: "claude-sonnet-4-6",
-        max_tokens: 1000,
+        max_tokens: 2000,
         tools: [{ type: "web_search_20250305", name: "web_search" }],
         messages: [{ role: "user", content: userContent }],
       }),
@@ -62,17 +75,25 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const text: string =
-      data.content?.find((b: { type: string }) => b.type === "text")?.text ?? "";
+    // Claude with web_search emits multiple content blocks; the last text block
+    // contains the synthesised answer (earlier ones are preamble).
+    const textBlocks: { type: string; text: string }[] =
+      (data.content ?? []).filter((b: { type: string }) => b.type === "text");
+    const text = textBlocks[textBlocks.length - 1]?.text ?? "";
 
-    try {
-      const results = JSON.parse(text.replace(/```json|```/g, "").trim());
-      return NextResponse.json({ results: Array.isArray(results) ? results : [results] });
-    } catch {
-      return NextResponse.json({
-        results: [{ title: "Results", summary: text.substring(0, 250), source: "System", time: "Now" }],
-      });
+    // Extract the first JSON array found in the response
+    const arrayMatch = text.match(/\[[\s\S]*\]/);
+    if (arrayMatch) {
+      try {
+        const results = JSON.parse(arrayMatch[0]);
+        return NextResponse.json({ results: Array.isArray(results) ? results : [results] });
+      } catch { /* fall through */ }
     }
+
+    // Last resort: surface raw text as a single card
+    return NextResponse.json({
+      results: [{ title: "Results", summary: text.substring(0, 400), source: "System", time: "Now", url: null }],
+    });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }

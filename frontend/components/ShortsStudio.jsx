@@ -752,7 +752,11 @@ export default function App({ workspaceId = null }) {
           :<div style={{display:"flex",gap:7,marginBottom:10}}><input placeholder="Search..." value={query} onChange={e=>setQ(e.target.value)} onKeyDown={e=>e.key==="Enter"&&doSearch()} style={{...ss.input,flex:1}}/><Btn ch={searching?Ic.spin(13):<>{Ic.search(13)} Search</>} onClick={doSearch} dis={searching}/></div>}
           <div style={{display:"flex",flexDirection:"column",gap:7}}>
             {results.map((r,i)=><Cd key={i} onClick={()=>setSel(r)} on={sel?.title===r.title} ch={<>
-              <div style={{display:"flex",gap:5,marginBottom:4,alignItems:"center"}}><Bd ch={r.source} co={r.source==="Google News"?C.bl:r.source==="Twitter/X"?C.pu:r.source==="TikTok"?C.pk:C.or}/><span style={{fontSize:9,color:C.t3}}>{r.time}</span></div>
+              <div style={{display:"flex",gap:5,marginBottom:4,alignItems:"center",flexWrap:"wrap"}}>
+                <Bd ch={r.source} co={r.source==="Google News"?C.bl:r.source==="Twitter/X"?C.pu:r.source==="TikTok"?C.pk:C.or}/>
+                <span style={{fontSize:9,color:C.t3}}>{r.time}</span>
+                {r.url&&<a href={r.url} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()} style={{marginLeft:"auto",fontSize:9,fontWeight:700,color:C.ac,textDecoration:"none",display:"flex",alignItems:"center",gap:3}}>{Ic.link(9)} Source</a>}
+              </div>
               <div style={{fontSize:13,fontWeight:700,color:C.t1,lineHeight:1.35,marginBottom:3}}>{r.title}</div>
               <div style={{fontSize:11,color:C.t2}}>{r.summary}</div>
               {r.hasVideo&&<div style={{marginTop:5,fontSize:9,fontWeight:700,color:C.ac}}>{Ic.play(10)} Video available</div>}
