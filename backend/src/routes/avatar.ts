@@ -12,7 +12,7 @@ const wrap = (fn: (req: Request, res: Response, next: NextFunction) => Promise<v
 
 function queueAdd(name: string, data: Record<string, unknown>, timeoutMs = 8000): Promise<{ id: string | number }> {
   return Promise.race([
-    queueAdd(name, data),
+    videoQueue.add(name, data) as Promise<{ id: string | number }>,
     new Promise<never>((_, reject) =>
       setTimeout(() => reject(new Error(`Redis queue timeout (${timeoutMs}ms) — check REDIS_URL`)), timeoutMs)
     ),

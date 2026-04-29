@@ -16,7 +16,7 @@ const wrap = (fn: (req: Request, res: Response, next: NextFunction) => Promise<v
 /** Adds a job to the queue with a hard timeout so requests never hang when Redis is slow. */
 function queueAdd(name: string, data: Record<string, unknown>, timeoutMs = 8000): Promise<{ id: string | number }> {
   return Promise.race([
-    queueAdd(name, data),
+    videoQueue.add(name, data) as Promise<{ id: string | number }>,
     new Promise<never>((_, reject) =>
       setTimeout(() => reject(new Error(`Redis queue timeout — is REDIS_URL reachable from Railway? (waited ${timeoutMs}ms)`)), timeoutMs)
     ),
