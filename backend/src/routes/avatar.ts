@@ -10,7 +10,7 @@ router.use(authMiddleware);
 const wrap = (fn: (req: Request, res: Response, next: NextFunction) => Promise<void>) =>
   (req: Request, res: Response, next: NextFunction) => fn(req, res, next).catch(next);
 
-function queueAdd(name: string, data: Record<string, unknown>, timeoutMs = 8000): Promise<unknown> {
+function queueAdd(name: string, data: Record<string, unknown>, timeoutMs = 8000): Promise<{ id: string | number }> {
   return Promise.race([
     queueAdd(name, data),
     new Promise<never>((_, reject) =>
