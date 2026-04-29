@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, Request, Response, NextFunction } from "express";
 import axios from "axios";
 import { authMiddleware } from "../middleware/auth";
 import { supabase } from "../lib/supabase";
@@ -9,6 +9,9 @@ const router = Router();
 router.use(authMiddleware);
 
 // ── helpers ───────────────────────────────────────────────────────────────────
+
+const wrap = (fn: (req: Request, res: Response, next: NextFunction) => Promise<void>) =>
+  (req: Request, res: Response, next: NextFunction) => fn(req, res, next).catch(next);
 
 async function getConnection(workspace_id: string, provider: string) {
   const { data } = await supabase
@@ -52,7 +55,7 @@ async function linkBullJob(jobId: string, bullJobId: string | number | undefined
 
 // ── GET /api/video/avatars?workspace_id= ──────────────────────────────────────
 
-router.get("/avatars", async (req, res) => {
+router.get("/avatars", wrap(async (req, res) => {
   const { workspace_id } = req.query as { workspace_id: string };
 
   const conn = await getConnection(workspace_id, "heygen");
@@ -61,22 +64,18 @@ router.get("/avatars", async (req, res) => {
     return;
   }
 
-  try {
-    const { data } = await axios.get("https://api.heygen.com/v2/avatars", {
-      headers: { "X-Api-Key": conn.encrypted_key },
-    });
-    res.json(data);
-  } catch (e: any) {
-    res.status(502).json({ error: e.message });
-  }
-});
+  const { data } = await axios.get("https://api.heygen.com/v2/avatars", {
+    headers: { "X-Api-Key": conn.encrypted_key },
+  });
+  res.json(data);
+}));
 
 // ── POST /api/video/download ──────────────────────────────────────────────────
 // Downloads a source video URL (YouTube, TikTok, etc.) via yt-dlp.
 // Returns job_id; poll GET /api/jobs/:id for progress.
 // Result contains: { storage_path, duration, width, height, title }
 
-router.post("/download", async (req, res) => {
+router.post("/download", wrap(async (req, res) => {
   const { workspace_id, url, video_id } = req.body as {
     workspace_id: string;
     url: string;
@@ -101,7 +100,7 @@ router.post("/download", async (req, res) => {
 
   await linkBullJob(job.id, bullJob.id);
   res.json({ job_id: job.id });
-});
+}));
 
 // ── POST /api/video/analyze ───────────────────────────────────────────────────
 // Analyzes a source video with Twelve Labs to find event footage segments.
@@ -109,7 +108,7 @@ router.post("/download", async (req, res) => {
 // Input: { workspace_id, storage_path, duration?, video_id? }
 // Result contains: { segments: [{start, end, score}], twelve_labs_video_id? }
 
-router.post("/analyze", async (req, res) => {
+router.post("/analyze", wrap(async (req, res) => {
   const { workspace_id, storage_path, duration, video_id } = req.body as {
     workspace_id: string;
     storage_path: string;
@@ -140,14 +139,14 @@ router.post("/analyze", async (req, res) => {
 
   await linkBullJob(job.id, bullJob.id);
   res.json({ job_id: job.id });
-});
+}));
 
 // ── POST /api/video/extract-footage ──────────────────────────────────────────
 // Extracts and concatenates specific time segments from a source video.
 // Input: { workspace_id, storage_path, segments: [{start, end}], video_id? }
 // Result contains: { footage_storage_path }
 
-router.post("/extract-footage", async (req, res) => {
+router.post("/extract-footage", wrap(async (req, res) => {
   const { workspace_id, storage_path, segments, video_id } = req.body as {
     workspace_id: string;
     storage_path: string;
@@ -174,11 +173,11 @@ router.post("/extract-footage", async (req, res) => {
 
   await linkBullJob(job.id, bullJob.id);
   res.json({ job_id: job.id });
-});
+}));
 
 // ── POST /api/video/generate — Queue avatar video generation ──────────────────
 
-router.post("/generate", async (req, res) => {
+router.post("/generate", wrap(async (req, res) => {
   const { workspace_id, video_id, script, avatar_id, voice_provider, lang } =
     req.body as {
       workspace_id: string;
@@ -212,7 +211,7 @@ router.post("/generate", async (req, res) => {
 
   await linkBullJob(job.id, bullJob.id);
   res.json({ job_id: job.id, bull_job_id: bullJob.id });
-});
+}));
 
 // ── POST /api/video/merge ─────────────────────────────────────────────────────
 // Composites footage (top) and avatar (bottom) into a 1080×1920 vertical video.
@@ -220,7 +219,7 @@ router.post("/generate", async (req, res) => {
 // Returns job_id; poll GET /api/jobs/:id for progress.
 // Result contains: { final_storage_path, download_url }
 
-router.post("/merge", async (req, res) => {
+router.post("/merge", wrap(async (req, res) => {
   const { video_id, footagePath, avatarPath, sceneMarkers, effects, duration } =
     req.body as {
       video_id: string;
@@ -264,11 +263,11 @@ router.post("/merge", async (req, res) => {
 
   await linkBullJob(job.id, bullJob.id);
   res.json({ job_id: job.id });
-});
+}));
 
 // ── GET /api/video/job/:id — Poll job status (legacy; prefer GET /api/jobs/:id)
 
-router.get("/job/:id", async (req, res) => {
+router.get("/job/:id", wrap(async (req, res) => {
   const { data: job, error } = await supabase
     .from("video_jobs")
     .select("*")
@@ -281,11 +280,11 @@ router.get("/job/:id", async (req, res) => {
   }
 
   res.json(job);
-});
+}));
 
 // ── GET /api/video/:id/url?expires_in=3600 ────────────────────────────────────
 
-router.get("/:id/url", async (req, res) => {
+router.get("/:id/url", wrap(async (req, res) => {
   const expiresIn = Number(req.query.expires_in) || 3600;
 
   const { data: video, error } = await supabase
@@ -316,12 +315,8 @@ router.get("/:id/url", async (req, res) => {
     return;
   }
 
-  try {
-    const signedUrl = await getSignedUrl(video.video_url, expiresIn);
-    res.json({ url: signedUrl, expires_in: expiresIn });
-  } catch (e: any) {
-    res.status(502).json({ error: e.message });
-  }
-});
+  const signedUrl = await getSignedUrl(video.video_url, expiresIn);
+  res.json({ url: signedUrl, expires_in: expiresIn });
+}));
 
 export default router;

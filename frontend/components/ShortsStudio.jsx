@@ -119,8 +119,12 @@ async function apiPost(path, body) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-  const d = await r.json();
-  if (!r.ok) throw new Error(d.error || `Request failed (${r.status})`);
+  let d;
+  try { d = await r.json(); } catch { throw new Error(`Server returned non-JSON (${r.status})`); }
+  if (!r.ok) {
+    const msg = d?.error || d?.message || d?.detail || JSON.stringify(d) || `Request failed (${r.status})`;
+    throw new Error(msg);
+  }
   return d;
 }
 

@@ -56,6 +56,14 @@ app.get("/health", (_, res) => {
   res.json({ ok: true, timestamp: new Date().toISOString() });
 });
 
+// Catch async errors thrown inside route handlers (Express 4 doesn't do this automatically)
+app.use((err: any, _req: any, res: any, _next: any) => {
+  console.error("[unhandled route error]", err);
+  if (!res.headersSent) {
+    res.status(500).json({ error: err?.message ?? "Internal server error" });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`Backend running on :${PORT}`);
 });

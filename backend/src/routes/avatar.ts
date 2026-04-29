@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, Request, Response, NextFunction } from "express";
 import axios from "axios";
 import { authMiddleware } from "../middleware/auth";
 import { supabase } from "../lib/supabase";
@@ -6,6 +6,9 @@ import { videoQueue } from "../queues/videoQueue";
 
 const router = Router();
 router.use(authMiddleware);
+
+const wrap = (fn: (req: Request, res: Response, next: NextFunction) => Promise<void>) =>
+  (req: Request, res: Response, next: NextFunction) => fn(req, res, next).catch(next);
 
 // ── In-memory avatar list cache (per workspace) ───────────────────────────────
 // Avoids hammering HeyGen on every page load. TTL = 1 hour.
@@ -40,7 +43,7 @@ function isV4Plus(avatar: Record<string, unknown>): boolean {
 // ── GET /api/avatar/list ──────────────────────────────────────────────────────
 // Returns v4+ avatars for the workspace's HeyGen account; cached for 1 hour.
 
-router.get("/list", async (req, res) => {
+router.get("/list", wrap(async (req, res) => {
   const workspaceId = req.workspaceId;
   if (!workspaceId) {
     res.status(400).json({ error: "X-Workspace-Id header required" });
@@ -79,13 +82,13 @@ router.get("/list", async (req, res) => {
   } catch (e: any) {
     res.status(502).json({ error: e.response?.data?.message ?? e.message });
   }
-});
+}));
 
 // ── POST /api/avatar/render ───────────────────────────────────────────────────
 // Queues a HeyGen avatar render job. Returns job_id; poll GET /api/jobs/:id.
 // Result contains: { avatar_storage_path, heygen_video_id }
 
-router.post("/render", async (req, res) => {
+router.post("/render", wrap(async (req, res) => {
   const {
     script,
     avatarId,
@@ -162,6 +165,6 @@ router.post("/render", async (req, res) => {
     .eq("id", jobRow.id);
 
   res.json({ job_id: jobRow.id });
-});
+}));
 
 export default router;
