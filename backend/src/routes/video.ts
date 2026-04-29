@@ -14,7 +14,7 @@ const wrap = (fn: (req: Request, res: Response, next: NextFunction) => Promise<v
   (req: Request, res: Response, next: NextFunction) => fn(req, res, next).catch(next);
 
 /** Adds a job to the queue with a hard timeout so requests never hang when Redis is slow. */
-function queueAdd(name: string, data: Record<string, unknown>, timeoutMs = 8000) {
+function queueAdd(name: string, data: Record<string, unknown>, timeoutMs = 8000): Promise<unknown> {
   return Promise.race([
     queueAdd(name, data),
     new Promise<never>((_, reject) =>
