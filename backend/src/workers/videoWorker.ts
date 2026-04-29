@@ -4,7 +4,7 @@ import axios from "axios";
 import fs from "fs";
 import path from "path";
 import { promisify } from "util";
-import { redisConnection } from "../lib/redis";
+import { workerRedisConnection } from "../lib/redis";
 import { supabase } from "../lib/supabase";
 import { uploadFile, getSignedUrl } from "../lib/storage";
 import { downloadToTemp, mergeLocalVideos, compositeVideo, extractFootageSegments, getVideoDuration } from "../lib/ffmpeg";
@@ -686,7 +686,7 @@ const worker = new Worker(
       default:             throw new Error(`Unknown job type: ${job.name}`);
     }
   },
-  { connection: redisConnection, concurrency: 2 }
+  { connection: workerRedisConnection, concurrency: 2 }
 );
 
 worker.on("failed", async (job, err) => {
