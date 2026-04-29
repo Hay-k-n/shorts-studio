@@ -122,15 +122,14 @@ export async function POST(req: NextRequest) {
 
   try {
     // Retry up to 2 times on 429 rate-limit errors
-    let res: Response | undefined;
-    for (let attempt = 0; attempt < 3; attempt++) {
-      res = await fetch(ANTHROPIC_API, { method: "POST", headers, body: payload });
-      if (res.status !== 429) break;
+    let res: Response = await fetch(ANTHROPIC_API, { method: "POST", headers, body: payload });
+    for (let attempt = 1; attempt < 3 && res.status === 429; attempt++) {
       const wait = Math.min(parseInt(res.headers.get("retry-after") ?? "15", 10), 30);
       await new Promise((r) => setTimeout(r, wait * 1000));
+      res = await fetch(ANTHROPIC_API, { method: "POST", headers, body: payload });
     }
 
-    const data = await res!.json();
+    const data = await res.json();
 
     if (!res.ok) {
       return NextResponse.json(
