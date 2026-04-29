@@ -1,13 +1,16 @@
-import { Router } from "express";
+import { Router, Request, Response, NextFunction } from "express";
 import { authMiddleware } from "../middleware/auth";
 import { supabase } from "../lib/supabase";
 
 const router = Router();
 router.use(authMiddleware);
 
+const wrap = (fn: (req: Request, res: Response, next: NextFunction) => Promise<void>) =>
+  (req: Request, res: Response, next: NextFunction) => fn(req, res, next).catch(next);
+
 // GET /api/jobs/:id — universal job status polling
 // Returns the full video_jobs row. Frontend polls this until status === 'completed' | 'failed'.
-router.get("/:id", async (req, res) => {
+router.get("/:id", wrap(async (req, res) => {
   const { data: job, error } = await supabase
     .from("video_jobs")
     .select("*")
@@ -33,6 +36,6 @@ router.get("/:id", async (req, res) => {
   }
 
   res.json(job);
-});
+}));
 
 export default router;
