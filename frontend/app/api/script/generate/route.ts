@@ -108,23 +108,29 @@ export async function POST(req: NextRequest) {
     platformIds.map((id) => `"${id}":{"caption":"<${PLATFORM_LABELS[id] ?? id}-optimized caption in ${langLabel}>","hashtags":"<10-15 relevant hashtags>"}`).join(",") +
     `}}\n\nThe sceneMarkers array must exactly match the [SHOW] markers in the script. Each start/end is in seconds (integer).`;
 
-  try {
-    const res = await fetch(ANTHROPIC_API, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "anthropic-version": "2023-06-01",
-        "x-api-key": apiKey,
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-6",
-        max_tokens: 2000,
-        system: systemPrompt,
-        messages: [{ role: "user", content: userPrompt }],
-      }),
-    });
+  const payload = JSON.stringify({
+    model: "claude-sonnet-4-6",
+    max_tokens: 2000,
+    system: systemPrompt,
+    messages: [{ role: "user", content: userPrompt }],
+  });
+  const headers = {
+    "Content-Type": "application/json",
+    "anthropic-version": "2023-06-01",
+    "x-api-key": apiKey,
+  };
 
-    const data = await res.json();
+  try {
+    // Retry up to 2 times on 429 rate-limit errors
+    let res: Response | undefined;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      res = await fetch(ANTHROPIC_API, { method: "POST", headers, body: payload });
+      if (res.status !== 429) break;
+      const wait = Math.min(parseInt(res.headers.get("retry-after") ?? "15", 10), 30);
+      await new Promise((r) => setTimeout(r, wait * 1000));
+    }
+
+    const data = await res!.json();
 
     if (!res.ok) {
       return NextResponse.json(

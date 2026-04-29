@@ -100,12 +100,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Step 2 — force structured extraction via submit_results tool
+    // Step 2 — force structured extraction via submit_results tool (Haiku: cheap, fast, separate TPM bucket)
     const r2 = await fetch(ANTHROPIC_API, {
       method: "POST",
       headers: ANTHROPIC_HEADERS(apiKey),
       body: JSON.stringify({
-        model: "claude-sonnet-4-6",
+        model: "claude-haiku-4-5-20251001",
         max_tokens: 2000,
         tools: [SUBMIT_RESULTS_TOOL],
         tool_choice: { type: "tool", name: "submit_results" },
