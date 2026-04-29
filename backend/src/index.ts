@@ -56,6 +56,17 @@ app.get("/health", (_, res) => {
   res.json({ ok: true, timestamp: new Date().toISOString() });
 });
 
+// Diagnostic: shows which env vars are present (not their values) — helps debug Railway config
+app.get("/diag", (_, res) => {
+  res.json({
+    SUPABASE_URL: process.env.SUPABASE_URL ? process.env.SUPABASE_URL.slice(0, 30) + "…" : "MISSING",
+    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY ? "set (" + process.env.SUPABASE_SERVICE_ROLE_KEY.length + " chars)" : "MISSING",
+    REDIS_URL: process.env.REDIS_URL ? process.env.REDIS_URL.slice(0, 20) + "…" : "MISSING",
+    FRONTEND_URL: process.env.FRONTEND_URL || "MISSING",
+    PORT: process.env.PORT || "4000",
+  });
+});
+
 // Catch async errors thrown inside route handlers (Express 4 doesn't do this automatically)
 app.use((err: any, _req: any, res: any, _next: any) => {
   console.error("[unhandled route error]", err);

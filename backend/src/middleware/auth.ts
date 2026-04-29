@@ -23,10 +23,13 @@ export async function authMiddleware(
       return;
     }
 
-    const {
-      data: { user },
-      error,
-    } = await supabase.auth.getUser(token);
+    const authResult = await Promise.race([
+      supabase.auth.getUser(token),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("Supabase auth timed out after 8s — check SUPABASE_URL on Railway")), 8000)
+      ),
+    ]);
+    const { data: { user }, error } = authResult;
 
     if (error || !user) {
       res.status(401).json({ error: "Unauthorized" });
