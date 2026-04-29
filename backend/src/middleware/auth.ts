@@ -11,6 +11,15 @@ declare global {
   }
 }
 
+function withTimeout<T>(p: PromiseLike<T>, ms: number, label: string): Promise<T> {
+  return Promise.race([
+    Promise.resolve(p),
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms — check SUPABASE_URL on Railway`)), ms)
+    ),
+  ]);
+}
+
 export async function authMiddleware(
   req: Request,
   res: Response,
@@ -23,12 +32,13 @@ export async function authMiddleware(
       return;
     }
 
-    const authResult = await Promise.race([
+    // Note: getUser(jwt) validates the JWT signature locally — no network call.
+    // We still race it in case the Supabase client does make a network request.
+    const authResult = await withTimeout(
       supabase.auth.getUser(token),
-      new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("Supabase auth timed out after 8s — check SUPABASE_URL on Railway")), 8000)
-      ),
-    ]);
+      8000,
+      "Supabase auth"
+    );
     const { data: { user }, error } = authResult;
 
     if (error || !user) {
@@ -40,12 +50,17 @@ export async function authMiddleware(
 
     const workspaceId = req.headers["x-workspace-id"] as string | undefined;
     if (workspaceId) {
-      const { data: member } = await supabase
-        .from("workspace_members")
-        .select("role")
-        .eq("workspace_id", workspaceId)
-        .eq("user_id", user.id)
-        .single();
+      const memberResult = await withTimeout(
+        supabase
+          .from("workspace_members")
+          .select("role")
+          .eq("workspace_id", workspaceId)
+          .eq("user_id", user.id)
+          .single(),
+        10000,
+        "Supabase workspace_members query"
+      );
+      const { data: member } = memberResult;
 
       if (!member) {
         res.status(403).json({ error: "Not a member of this workspace" });

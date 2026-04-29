@@ -13,6 +13,16 @@ router.use(authMiddleware);
 const wrap = (fn: (req: Request, res: Response, next: NextFunction) => Promise<void>) =>
   (req: Request, res: Response, next: NextFunction) => fn(req, res, next).catch(next);
 
+/** Wraps a Supabase query with a hard timeout so requests never hang when the DB is slow/paused. */
+function dbQuery<T>(p: PromiseLike<T>, label = "Supabase query"): Promise<T> {
+  return Promise.race([
+    Promise.resolve(p),
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error(`${label} timed out (10s) — is the Supabase project paused or SUPABASE_URL wrong?`)), 10000)
+    ),
+  ]);
+}
+
 /** Adds a job to the queue with a hard timeout so requests never hang when Redis is slow. */
 function queueAdd(name: string, data: Record<string, unknown>, timeoutMs = 8000): Promise<{ id: string | number }> {
   return Promise.race([
@@ -24,21 +34,27 @@ function queueAdd(name: string, data: Record<string, unknown>, timeoutMs = 8000)
 }
 
 async function getConnection(workspace_id: string, provider: string) {
-  const { data } = await supabase
-    .from("workspace_connections")
-    .select("encrypted_key, account_name")
-    .eq("workspace_id", workspace_id)
-    .eq("provider", provider)
-    .single();
+  const { data } = await dbQuery(
+    supabase
+      .from("workspace_connections")
+      .select("encrypted_key, account_name")
+      .eq("workspace_id", workspace_id)
+      .eq("provider", provider)
+      .single(),
+    "getConnection"
+  );
   return data;
 }
 
 async function getConnections(workspace_id: string, providers: string[]) {
-  const { data } = await supabase
-    .from("workspace_connections")
-    .select("provider, encrypted_key, account_name")
-    .eq("workspace_id", workspace_id)
-    .in("provider", providers);
+  const { data } = await dbQuery(
+    supabase
+      .from("workspace_connections")
+      .select("provider, encrypted_key, account_name")
+      .eq("workspace_id", workspace_id)
+      .in("provider", providers),
+    "getConnections"
+  );
   return Object.fromEntries((data ?? []).map((c) => [c.provider, c]));
 }
 
@@ -47,20 +63,26 @@ async function createJob(
   workspace_id: string,
   extra: Record<string, unknown> = {}
 ) {
-  const { data: job } = await supabase
-    .from("video_jobs")
-    .insert({ workspace_id, step, status: "pending", ...extra })
-    .select()
-    .single();
+  const { data: job } = await dbQuery(
+    supabase
+      .from("video_jobs")
+      .insert({ workspace_id, step, status: "pending", ...extra })
+      .select()
+      .single(),
+    "createJob"
+  );
   return job!;
 }
 
 async function linkBullJob(jobId: string, bullJobId: string | number | undefined) {
   if (bullJobId === undefined) return;
-  await supabase
-    .from("video_jobs")
-    .update({ bull_job_id: String(bullJobId) })
-    .eq("id", jobId);
+  await dbQuery(
+    supabase
+      .from("video_jobs")
+      .update({ bull_job_id: String(bullJobId) })
+      .eq("id", jobId),
+    "linkBullJob"
+  );
 }
 
 // ── GET /api/video/avatars?workspace_id= ──────────────────────────────────────
@@ -297,11 +319,14 @@ router.get("/job/:id", wrap(async (req, res) => {
 router.get("/:id/url", wrap(async (req, res) => {
   const expiresIn = Number(req.query.expires_in) || 3600;
 
-  const { data: video, error } = await supabase
-    .from("videos")
-    .select("video_url, workspace_id")
-    .eq("id", req.params.id)
-    .single();
+  const { data: video, error } = await dbQuery(
+    supabase
+      .from("videos")
+      .select("video_url, workspace_id")
+      .eq("id", req.params.id)
+      .single(),
+    "videos select"
+  );
 
   if (error || !video) {
     res.status(404).json({ error: "Video not found" });
@@ -313,12 +338,15 @@ router.get("/:id/url", wrap(async (req, res) => {
     return;
   }
 
-  const { data: membership } = await supabase
-    .from("workspace_members")
-    .select("id")
-    .eq("workspace_id", video.workspace_id)
-    .eq("user_id", req.user!.id)
-    .single();
+  const { data: membership } = await dbQuery(
+    supabase
+      .from("workspace_members")
+      .select("id")
+      .eq("workspace_id", video.workspace_id)
+      .eq("user_id", req.user!.id)
+      .single(),
+    "membership check"
+  );
 
   if (!membership) {
     res.status(403).json({ error: "Forbidden" });

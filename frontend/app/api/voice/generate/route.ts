@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getBackendUrl } from "@/lib/backend";
 import { createClient } from "@/lib/supabase/server";
 import { cookies } from "next/headers";
 import { WORKSPACE_COOKIE } from "@/lib/workspace";
@@ -9,7 +10,7 @@ export async function POST(req: NextRequest) {
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const workspaceId = cookies().get(WORKSPACE_COOKIE)?.value;
-  const backendUrl = process.env.BACKEND_URL ?? "http://localhost:4000";
+  const backendUrl = getBackendUrl();
   const body = await req.json();
 
   let upstream: Response;

@@ -9,6 +9,7 @@ import scriptRoutes from "./routes/script";
 import voiceRoutes from "./routes/voice";
 import avatarRoutes from "./routes/avatar";
 import jobsRoutes from "./routes/jobs";
+import { supabase } from "./lib/supabase";
 
 dotenv.config();
 
@@ -56,11 +57,29 @@ app.get("/health", (_, res) => {
   res.json({ ok: true, timestamp: new Date().toISOString() });
 });
 
-// Diagnostic: shows which env vars are present (not their values) — helps debug Railway config
-app.get("/diag", (_, res) => {
+// Diagnostic: shows env vars + tests live DB connectivity — helps debug Railway config
+app.get("/diag", async (_, res) => {
+  const t0 = Date.now();
+  let dbOk = false;
+  let dbError = "";
+  try {
+    await Promise.race([
+      supabase.from("workspace_members").select("id").limit(1),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("timeout")), 6000)
+      ),
+    ]);
+    dbOk = true;
+  } catch (e: any) {
+    dbError = e.message;
+  }
+
   res.json({
     SUPABASE_URL: process.env.SUPABASE_URL ? process.env.SUPABASE_URL.slice(0, 30) + "…" : "MISSING",
     SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY ? "set (" + process.env.SUPABASE_SERVICE_ROLE_KEY.length + " chars)" : "MISSING",
+    supabase_db_ok: dbOk,
+    supabase_db_ms: Date.now() - t0,
+    supabase_db_error: dbError || null,
     REDIS_URL: process.env.REDIS_URL ? process.env.REDIS_URL.slice(0, 20) + "…" : "MISSING",
     FRONTEND_URL: process.env.FRONTEND_URL || "MISSING",
     PORT: process.env.PORT || "4000",
