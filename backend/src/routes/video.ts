@@ -13,6 +13,16 @@ router.use(authMiddleware);
 const wrap = (fn: (req: Request, res: Response, next: NextFunction) => Promise<void>) =>
   (req: Request, res: Response, next: NextFunction) => fn(req, res, next).catch(next);
 
+/** Adds a job to the queue with a hard timeout so requests never hang when Redis is slow. */
+function queueAdd(name: string, data: Record<string, unknown>, timeoutMs = 8000) {
+  return Promise.race([
+    queueAdd(name, data),
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error(`Redis queue timeout — is REDIS_URL reachable from Railway? (waited ${timeoutMs}ms)`)), timeoutMs)
+    ),
+  ]);
+}
+
 async function getConnection(workspace_id: string, provider: string) {
   const { data } = await supabase
     .from("workspace_connections")
@@ -91,7 +101,7 @@ router.post("/download", wrap(async (req, res) => {
     ...(video_id ? { video_id } : {}),
   });
 
-  const bullJob = await videoQueue.add("download", {
+  const bullJob = await queueAdd("download", {
     job_id: job.id,
     workspace_id,
     url,
@@ -127,7 +137,7 @@ router.post("/analyze", wrap(async (req, res) => {
     ...(video_id ? { video_id } : {}),
   });
 
-  const bullJob = await videoQueue.add("analyze", {
+  const bullJob = await queueAdd("analyze", {
     job_id: job.id,
     workspace_id,
     storage_path,
@@ -163,7 +173,7 @@ router.post("/extract-footage", wrap(async (req, res) => {
     ...(video_id ? { video_id } : {}),
   });
 
-  const bullJob = await videoQueue.add("extract", {
+  const bullJob = await queueAdd("extract", {
     job_id: job.id,
     workspace_id,
     storage_path,
@@ -196,7 +206,7 @@ router.post("/generate", wrap(async (req, res) => {
 
   const job = await createJob("generate", workspace_id, { video_id });
 
-  const bullJob = await videoQueue.add("generate", {
+  const bullJob = await queueAdd("generate", {
     job_id: job.id,
     video_id,
     workspace_id,
@@ -246,7 +256,7 @@ router.post("/merge", wrap(async (req, res) => {
 
   const job = await createJob("merge", workspace_id, { video_id });
 
-  const bullJob = await videoQueue.add("merge", {
+  const bullJob = await queueAdd("merge", {
     job_id: job.id,
     video_id,
     workspace_id,

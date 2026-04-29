@@ -10,6 +10,15 @@ router.use(authMiddleware);
 const wrap = (fn: (req: Request, res: Response, next: NextFunction) => Promise<void>) =>
   (req: Request, res: Response, next: NextFunction) => fn(req, res, next).catch(next);
 
+function queueAdd(name: string, data: Record<string, unknown>, timeoutMs = 8000) {
+  return Promise.race([
+    queueAdd(name, data),
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error(`Redis queue timeout (${timeoutMs}ms) — check REDIS_URL`)), timeoutMs)
+    ),
+  ]);
+}
+
 // ── In-memory avatar list cache (per workspace) ───────────────────────────────
 // Avoids hammering HeyGen on every page load. TTL = 1 hour.
 
@@ -146,7 +155,7 @@ router.post("/render", wrap(async (req, res) => {
     return;
   }
 
-  const bullJob = await videoQueue.add("render", {
+  const bullJob = await queueAdd("render", {
     job_id: jobRow.id,
     video_id,
     workspace_id: workspaceId,
